@@ -181,6 +181,31 @@ async def _save_ttl(client, chat_id, msg_id, unlock=False) -> bool:
         return False
 
 
+async def _try_silent_ttl(client, msg, chat_id) -> bool:
+    """Try to grab a timed message WITHOUT opening it (no 'opened' signal to
+    the sender). Works when the server already hands out the file."""
+    try:
+        entry = await _build_entry(client, msg, chat_id, allow_ttl=True)
+    except Exception as e:
+        log.warn(f"Anti-delete: silent timed download error for {msg.id}: {e}")
+        return False
+    if not entry["media_bytes"]:
+        log.info(f"Anti-delete: timed msg {msg.id} has no downloadable file yet — waiting for you to open it")
+        return False
+    await _notify_with_retry(client, entry, msg.id)
+    return True
+
+
+async def _handle_new_ttl(client, msg, chat_id):
+    if await _try_silent_ttl(client, msg, chat_id):
+        return
+    _pending_ttl[msg.id] = chat_id
+    while len(_pending_ttl) > _PENDING_TTL_CAP:
+        _pending_ttl.popitem(last=False)
+    if TTL_AUTO_OPEN:
+        await _save_ttl(client, chat_id, msg.id, unlock=True)
+
+
 async def cmd_save_ttl(event):
     """`.تایم` as a reply to a timed photo/video: open + save it on demand."""
     reply = await event.get_reply_message()
@@ -635,11 +660,8 @@ def register(client):
                 return
 
         if not event.message.out and _is_ttl(event.message):
-            _pending_ttl[event.message.id] = event.chat_id
-            while len(_pending_ttl) > _PENDING_TTL_CAP:
-                _pending_ttl.popitem(last=False)
-            if TTL_AUTO_OPEN:
-                asyncio.create_task(_save_ttl(client, event.chat_id, event.message.id, unlock=True))
+            log.info(f"Anti-delete: timed media received (msg {event.message.id})")
+            asyncio.create_task(_handle_new_ttl(client, event.message, event.chat_id))
             return
 
         # Still cache even for muted chats — bilateral-delete detection
@@ -711,6 +733,7 @@ def register(client):
     async def _ttl_opened_handler(update):
         if state.paused:
             return
+        log.info(f"Anti-delete: contents-opened update for ids {list(update.messages)}")
         for mid in update.messages:
             chat_id = _pending_ttl.pop(mid, None)
             if chat_id is not None:
