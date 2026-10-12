@@ -1,0 +1,7 @@
+# Railway / Nixpacks configuration
+# Tells Railway to run main.py directly (single process, no wrapper).
+# Do NOT use start.py or render_app.py on Railway — they spawn a
+# second subprocess which doubles RAM usage for no benefit.
+
+[start]
+cmd = "python main.py"

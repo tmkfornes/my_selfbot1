@@ -1,0 +1,30 @@
+# ── Direct runtime dependencies only ────────────────────────────────────
+# Transitive deps (cryptography, pyaes, rsa for Telethon; anyio, httpcore,
+# h11 for python-telegram-bot; etc.) are pulled in automatically by pip.
+# Listing only what the code actually imports reduces install time ~50%.
+
+Telethon==1.44.0
+python-telegram-bot==22.8
+python-dotenv==1.2.2
+
+# Media / sticker rendering
+Pillow==12.3.0
+pilmoji==2.0.5
+arabic-reshaper==3.0.1
+python-bidi==0.6.11
+imageio-ffmpeg==0.6.0
+
+# AI + networking
+httpx==0.28.1
+
+# Video downloader (..)
+yt-dlp>=2025.1.1
+
+# Translation
+deep-translator==1.11.4
+
+# Terminal output
+colorama==0.4.6
+
+# Timezone data (needed by ZoneInfo on Linux containers)
+tzdata==2026.3
